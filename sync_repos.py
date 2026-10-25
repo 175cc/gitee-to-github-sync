@@ -88,11 +88,24 @@ def main():
     github_names = {repo["name"].casefold() for repo in github_repositories}
 
     for repository in gitee_repositories:
-        name = repository.get("name")
+        name = repository.get("name") or repository.get("path")
         clone_url = repository.get("clone_url")
-        if not name or not clone_url:
-            print("[!] Skipping a Gitee repository with missing name or clone URL")
+        if not name:
+            print("[!] Skipping a Gitee repository without a name")
             continue
+        if not clone_url:
+            full_name = repository.get("full_name") or ""
+            if "/" in full_name:
+                namespace, repository_path = full_name.rsplit("/", 1)
+            else:
+                owner = repository.get("owner") or {}
+                namespace = owner.get("login") or gitee_user
+                repository_path = repository.get("path") or name
+            clone_path = "/".join(
+                quote(part, safe="") for part in (namespace, repository_path)
+            )
+            clone_url = f"https://gitee.com/{clone_path}.git"
+            print(f"[!] {name} has no clone_url; using its canonical Gitee URL")
 
         if name.casefold() not in github_names:
             payload = {
